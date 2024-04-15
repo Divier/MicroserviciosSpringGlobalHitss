@@ -1,0 +1,158 @@
+services:
+  accountsdb:
+    image: mysql
+    container_name: "accountsdb"
+    ports:
+      - 3306:3306
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+      start_period: 10s
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: accountsdb
+    networks:
+      - bank_net
+  loansdb:
+    image: mysql
+    container_name: "loansdb"
+    ports:
+      - 3307:3306
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+      start_period: 10s
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: loansdb
+    networks:
+      - bank_net
+  cardsdb:
+    image: mysql
+    container_name: "cardsdb"
+    ports:
+      - 3308:3306
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      timeout: 10s
+      retries: 10
+      interval: 10s
+      start_period: 10s
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: cardsdb
+    networks:
+      - bank_net
+  rabbit:
+    image: "rabbitmq:3.13-management"
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 5s
+    networks:
+      - bank_net
+  configserver:
+    image: "diviercasas26/ms-configserver:v1.0"
+    container_name: configserver
+    ports:
+      - "8071:8071"
+    depends_on:
+      rabbit:
+        condition: service_healthy
+    healthcheck:
+      test: "curl --fail --silent localhost:8071/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 500m
+          cpus: "2"
+    environment:
+      SPRING_RABBITMQ_HOST: "rabbit"
+    networks:
+      - bank_net
+  accounts:
+    image: "diviercasas26/ms-accounts:v1.0"
+    container_name: accounts_api
+    ports:
+      - "8081:8081"
+    depends_on:
+      configserver:
+        condition: service_healthy
+      accountsdb:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+          cpus: "2"
+    environment:
+      SPRING_RABBITMQ_HOST: "rabbit"
+      SPRING_APPLICATION_NAME: "accounts"
+      SPRING_PROFILES_ACTIVE: "default"
+      SPRING_CONFIG_IMPORT: "configserver:http://configserver:8071/"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://accountsdb:3306/accountsdb"
+    networks:
+      - bank_net
+  loans:
+    image: "diviercasas26/ms-loans:v1.0"
+    container_name: loans_api
+    ports:
+      - "8083:8083"
+    depends_on:
+      configserver:
+        condition: service_healthy
+      loansdb:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+          cpus: "2"
+    environment:
+      SPRING_RABBITMQ_HOST: "rabbit"
+      SPRING_APPLICATION_NAME: "loans"
+      SPRING_PROFILES_ACTIVE: "default"
+      SPRING_CONFIG_IMPORT: "configserver:http://configserver:8071/"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://loansdb:3307/loansdb"
+    networks:
+      - bank_net
+  cards:
+    image: "diviercasas26/ms-cards:v1.0"
+    container_name: "cards_api"
+    ports:
+      - "8082:8082"
+    depends_on:
+      configserver:
+        condition: service_healthy
+      cardsdb:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+          cpus: "2"
+    environment:
+      SPRING_RABBITMQ_HOST: "rabbit"
+      SPRING_APPLICATION_NAME: "cards"
+      SPRING_PROFILES_ACTIVE: "default"
+      SPRING_CONFIG_IMPORT: "configserver:http://configserver:8071/"
+      SPRING_DATASOURCE_URL: "jdbc:mysql://cardsdb:3308/cardsdb"
+    networks:
+      - bank_net
+networks:
+  bank_net:
+    driver: "bridge"

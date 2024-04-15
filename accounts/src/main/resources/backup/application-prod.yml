@@ -1,0 +1,17 @@
+spring:
+ config: 
+  activate:
+   on-profile: "prod"
+
+build:
+  version: "v1.0"
+  
+# ConfigurationProperties
+contact:
+  message: "Account API PROD"
+  details:
+    name: "Divier Casas"
+    email: "diviercasas26@gmail.com"
+  phone-numbers:
+    - "123"
+    - "456"

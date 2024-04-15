@@ -1,0 +1,11 @@
+build:
+  version: "v1.0"
+  
+contact:
+  message: "Cards API PROD"
+  details:
+    name: "Divier Casas"
+    email: "diviercasas26@gmail.com"
+  phone-numbers:
+    - "123"
+    - "456"
